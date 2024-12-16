@@ -1,7 +1,16 @@
+// game4
+
 #ifndef _3X3X_O_H
 #define _3X3X_O_H
 
 #include "BoardGame_Classes.h"
+#include <iostream>
+#include <fstream>
+#include <set>
+#include <iomanip>
+#include <cctype>  // for toupper()
+
+using namespace std;
 
 template <typename T>
 class X_O_Board : public Board<T> {
@@ -30,22 +39,13 @@ public:
 
 //--------------------------------------- IMPLEMENTATION
 
-#include <iostream>
-#include <iomanip>
-#include <cctype>  // for toupper()
-#include <cstdlib> // for rand(), srand()
-#include <ctime>   // for time()
-
-using namespace std;
-
 // Constructor for X_O_Board
 template <typename T>
 X_O_Board<T>::X_O_Board() {
-    this->rows = 3;
-    this->columns = 5;
+    this->rows = this->columns = 3;
     this->board = new char*[this->rows];
     for (int i = 0; i < this->rows; i++) {
-        this->board[i] = new char[2 * i + 1];
+        this->board[i] = new char[this->columns];
         for (int j = 0; j < this->columns; j++) {
             this->board[i][j] = 0;
         }
@@ -55,7 +55,6 @@ X_O_Board<T>::X_O_Board() {
 
 template <typename T>
 bool X_O_Board<T>::update_board(int x, int y, T mark) {
-    // Only update if move is valid
     if (!(x < 0 || x >= this->rows || y < 0 || y >= this->columns) && (this->board[x][y] == 0 || mark == 0)) {
         if (mark == 0) {
             this->n_moves--;
@@ -64,7 +63,6 @@ bool X_O_Board<T>::update_board(int x, int y, T mark) {
             this->n_moves++;
             this->board[x][y] = toupper(mark);
         }
-
         return true;
     }
     return false;
@@ -73,18 +71,13 @@ bool X_O_Board<T>::update_board(int x, int y, T mark) {
 // Display the board and the pieces on it
 template <typename T>
 void X_O_Board<T>::display_board() {
-    cout << "=====================";
-
     for (int i = 0; i < this->rows; i++) {
-        cout << "\n ";
-        for (int k = this->rows; k > i; --k) {
-            cout << "        ";
-        }
-        for (int j = 0; j < 2 * i + 1; j++) {
+        cout << "\n| ";
+        for (int j = 0; j < this->columns; j++) {
             cout << "(" << i << "," << j << ")";
-            cout << setw(2) << this->board[i][j] << " ";
+            cout << setw(2) << this->board[i][j] << " |";
         }
-        cout << "\n-------------------------------------------";
+        cout << "\n-----------------------------";
     }
     cout << endl;
 }
@@ -92,13 +85,64 @@ void X_O_Board<T>::display_board() {
 // Returns true if there is any winner
 template <typename T>
 bool X_O_Board<T>::is_win() {
-    if ((this->board[0][0] == this->board[1][2] && this->board[0][0] == this->board[2][4] && this->board[0][0] != 0) ||
-        (this->board[0][0] == this->board[1][0] && this->board[0][0] == this->board[2][0] && this->board[0][0] != 0) ||
-        (this->board[0][0] == this->board[1][1] && this->board[0][0] == this->board[2][2] && this->board[0][0] != 0) ||
-        (this->board[1][0] == this->board[1][1] && this->board[1][0] == this->board[1][2] && this->board[1][0] != 0) ||
-        (this->board[2][0] == this->board[2][1] && this->board[0][0] == this->board[2][2] && this->board[2][0] != 0) ||
-        (this->board[2][2] == this->board[2][3] && this->board[2][2] == this->board[2][4] && this->board[2][2] != 0) ||
-        (this->board[2][1] == this->board[2][2] && this->board[2][1] == this->board[2][3] && this->board[2][1] != 0)) {
+    // Load valid words from the file
+    ifstream ipf("meow.txt");
+    if (!ipf.is_open()) {
+        cerr << "Error: Could not open file meow.txt" << endl;
+        return false;
+    }
+
+    set<string> valid_words;
+    string word;
+    while (getline(ipf, word)) {
+        if (word.size() == 3) {
+            for (char& c : word) c = toupper(c); // Convert to uppercase for uniform comparison
+            valid_words.insert(word);
+        }
+    }
+    ipf.close();
+
+    // Helper lambda to check if a string is a valid word
+    auto is_valid_word = [&](const string& str) {
+        return valid_words.find(str) != valid_words.end();
+    };
+
+    // Check rows
+    for (int i = 0; i < this->rows; i++) {
+        string row_word = "";
+        for (int j = 0; j < this->columns; j++) {
+            row_word += this->board[i][j];
+        }
+        if (is_valid_word(row_word)) {
+            cout << "Winner found with row: " << row_word << endl;
+            return true;
+        }
+    }
+
+    // Check columns
+    for (int j = 0; j < this->columns; j++) {
+        string col_word = "";
+        for (int i = 0; i < this->rows; i++) {
+            col_word += this->board[i][j];
+        }
+        if (is_valid_word(col_word)) {
+            cout << "Winner found with column: " << col_word << endl;
+            return true;
+        }
+    }
+
+    // Check diagonals
+    string diag1 = "", diag2 = "";
+    for (int i = 0; i < this->rows; i++) {
+        diag1 += this->board[i][i];
+        diag2 += this->board[i][this->rows - i - 1];
+    }
+    if (is_valid_word(diag1)) {
+        cout << "Winner found with diagonal: " << diag1 << endl;
+        return true;
+    }
+    if (is_valid_word(diag2)) {
+        cout << "Winner found with diagonal: " << diag2 << endl;
         return true;
     }
 
@@ -126,6 +170,9 @@ template <typename T>
 void X_O_Player<T>::getmove(int& x, int& y) {
     cout << "\nPlease enter your move x and y (0 to 2) separated by spaces: ";
     cin >> x >> y;
+    cout << " enter your character: ";
+    cin >> this->symbol;
+    this->symbol = toupper(this->symbol);
 }
 
 // Constructor for X_O_Random_Player
